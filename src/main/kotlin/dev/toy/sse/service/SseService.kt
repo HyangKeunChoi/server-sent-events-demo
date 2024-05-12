@@ -5,25 +5,23 @@ import org.springframework.stereotype.Service
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 import java.io.IOException
 import java.lang.IllegalArgumentException
-import java.util.*
 import kotlin.RuntimeException
 
 @Service
 class SseService(
     private val emitterRepository: EmitterRepository
 ) {
-
     fun connect(): SseEmitter {
         val sseEmitter = SseEmitter(DEFAULT_TIMEOUT)
-        sseEmitter.onCompletion{ println("complete") }
-        sseEmitter.onTimeout{ print("timeout") }
+        sseEmitter.onCompletion { println("complete") }
+        sseEmitter.onTimeout { print("timeout") }
 
         try {
-            sseEmitter.send(SseEmitter.event().id("id").name(EVENT).data(Random().nextInt()))
+            sseEmitter.send(SseEmitter.event().id("id").name(EVENT).data("connected"))
         } catch (e: IOException) {
             throw RuntimeException(e)
         }
-
+        emitterRepository.save(1, sseEmitter)
         return sseEmitter
     }
 
@@ -32,13 +30,15 @@ class SseService(
         const val EVENT = "event"
     }
 
-    fun eventSend(number: Int) {
-        emitterRepository.save(number, SseEmitter())
-        val sseEmitter = emitterRepository.get(number) ?: throw IllegalArgumentException("없는 number")
-        try {
-            sseEmitter.send(SseEmitter.event().id("id").name(EVENT).data("SUCCESS"))
-        } catch (e: IOException) {
-            throw IOException("오류 발생")
+    fun eventSend(): SseEmitter {
+        val sseEmitter = emitterRepository.get(1) ?: throw IllegalArgumentException("wrong number")
+        sseEmitter.let {
+            try {
+                it.send(SseEmitter.event().id("id").name("event send").data("SUCCESS"))
+            } catch (e: IOException) {
+                throw IOException("Failed to send event")
+            }
         }
+        return sseEmitter
     }
 }
